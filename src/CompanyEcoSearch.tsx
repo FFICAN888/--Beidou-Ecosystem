@@ -121,6 +121,111 @@ const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, v
   );
 };
 
+// --- 登录验证密钥 (from env vars) ---
+const PARTNER_CREDS = {
+  user: import.meta.env.VITE_PARTNER_USER || 'partner',
+  pass: import.meta.env.VITE_PARTNER_PASS || 'eco2026',
+};
+const ADMIN_CREDS = {
+  user: import.meta.env.VITE_ADMIN_USER || 'admin',
+  pass: import.meta.env.VITE_ADMIN_PASS || 'beidou@2026',
+};
+
+// --- 登录弹窗组件 ---
+function LoginModal({ title, subtitle, onSuccess, onCancel, correctUser, correctPass }: {
+  title: string;
+  subtitle: string;
+  onSuccess: () => void;
+  onCancel: () => void;
+  correctUser: string;
+  correctPass: string;
+}) {
+  const [username, setUsername] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [shake, setShake] = React.useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username === correctUser && password === correctPass) {
+      setError('');
+      onSuccess();
+    } else {
+      setError('账号或密码错误，请重试');
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+      <div
+        className={`w-full max-w-sm bg-white dark:bg-slate-900 rounded-[32px] p-10 shadow-2xl border border-slate-200 dark:border-slate-800 ${
+          shake ? 'animate-[shake_0.5s_ease-in-out]' : ''
+        }`}
+        style={shake ? { animation: 'shake 0.5s ease-in-out' } : {}}
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-indigo-600 rounded-[20px] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{title}</h2>
+          <p className="text-sm text-slate-500">{subtitle}</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">账号</label>
+            <input
+              type="text"
+              autoFocus
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="请输入账号"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">密码</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入密码"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+            />
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-rose-500 text-xs font-bold bg-rose-50 dark:bg-rose-900/20 px-4 py-3 rounded-xl">
+              <X className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all"
+            >
+              登录
+            </button>
+          </div>
+        </form>
+
+        <p className="mt-6 text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+          内部系统 · 授权访问
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function CompanyEcoSearch() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('全部');
@@ -135,6 +240,15 @@ export default function CompanyEcoSearch() {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [pendingSubmissions, setPendingSubmissions] = useState<any[]>([]);
+
+  // --- 登录验证状态 (sessionStorage 跨刷新持久) ---
+  const [isSubmissionAuthed, setIsSubmissionAuthed] = useState(
+    () => sessionStorage.getItem('eco_partner_authed') === 'true'
+  );
+  const [isAdminAuthed, setIsAdminAuthed] = useState(
+    () => sessionStorage.getItem('eco_admin_authed') === 'true'
+  );
+  const [loginGate, setLoginGate] = useState<'submission' | 'admin' | null>(null);
 
   const [settings, setSettings] = useState({
     allowSubmissions: true,
@@ -383,7 +497,15 @@ export default function CompanyEcoSearch() {
             <div className="hidden md:flex items-center gap-8">
               <a href="#" className="text-sm font-medium hover:text-indigo-600 transition-colors flex items-center gap-1.5"><Map className="w-4 h-4" />生态全景</a>
               <button 
-                onClick={() => setIsAdminMode(!isAdminMode)}
+                onClick={() => {
+                  if (isAdminMode) {
+                    setIsAdminMode(false);
+                  } else if (isAdminAuthed) {
+                    setIsAdminMode(true);
+                  } else {
+                    setLoginGate('admin');
+                  }
+                }}
                 className={`text-sm font-bold transition-all px-3 py-1.5 rounded-lg border-2 ${
                   isAdminMode 
                   ? 'text-amber-600 bg-amber-50 border-amber-200 shadow-sm' 
@@ -394,7 +516,13 @@ export default function CompanyEcoSearch() {
               </button>
               {settings.allowSubmissions && (
                 <button 
-                  onClick={() => setIsSubmitModalOpen(true)}
+                  onClick={() => {
+                    if (isSubmissionAuthed) {
+                      setIsSubmitModalOpen(true);
+                    } else {
+                      setLoginGate('submission');
+                    }
+                  }}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-500/10"
                 >
                   资源提报
@@ -411,6 +539,38 @@ export default function CompanyEcoSearch() {
           </div>
         </div>
       </nav>
+
+      {/* 登录验证弹窗 */}
+      {loginGate === 'submission' && (
+        <LoginModal
+          title="资源提报登录"
+          subtitle="请输入授权账号和密码以提交生态资源"
+          correctUser={PARTNER_CREDS.user}
+          correctPass={PARTNER_CREDS.pass}
+          onCancel={() => setLoginGate(null)}
+          onSuccess={() => {
+            sessionStorage.setItem('eco_partner_authed', 'true');
+            setIsSubmissionAuthed(true);
+            setLoginGate(null);
+            setIsSubmitModalOpen(true);
+          }}
+        />
+      )}
+      {loginGate === 'admin' && (
+        <LoginModal
+          title="管理控制台登录"
+          subtitle="内部系统 · 仅授权管理员访问"
+          correctUser={ADMIN_CREDS.user}
+          correctPass={ADMIN_CREDS.pass}
+          onCancel={() => setLoginGate(null)}
+          onSuccess={() => {
+            sessionStorage.setItem('eco_admin_authed', 'true');
+            setIsAdminAuthed(true);
+            setLoginGate(null);
+            setIsAdminMode(true);
+          }}
+        />
+      )}
 
       {/* 资源提报弹窗 */}
       {isSubmitModalOpen && (

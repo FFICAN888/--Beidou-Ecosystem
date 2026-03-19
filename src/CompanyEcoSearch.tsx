@@ -693,7 +693,7 @@ export default function CompanyEcoSearch() {
                              <h4 className="text-lg font-black mb-2 group-hover:text-amber-600 transition-colors">{sub.name}</h4>
                              <p className="text-sm text-slate-500 mb-4 italic">“{sub.description}”</p>
                              <div className="flex flex-wrap gap-2">
-                               {sub.industries.map(tag => <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded-lg text-slate-500"># {tag}</span>)}
+                               {sub.industries.map((tag: string) => <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded-lg text-slate-500"># {tag}</span>)}
                              </div>
                            </div>
                            <div className="md:w-48 flex flex-col justify-between border-l border-slate-100 dark:border-slate-800 pl-6">

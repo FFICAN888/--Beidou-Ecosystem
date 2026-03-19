@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Globe, FileText, Phone, Mail, ExternalLink, ShieldCheck, Zap, Info, Menu, X, Filter, Map, Satellite, Building2, GraduationCap, Users } from 'lucide-react';
+import { Search, Globe, FileText, Phone, Mail, ExternalLink, ShieldCheck, Zap, Menu, X, Filter, Map, Satellite, Building2, GraduationCap, Users } from 'lucide-react';
 
 // --- 类型定义 ---
 type EntityType = '企业' | '高校/院所' | '甲方单位' | '生态伙伴';
@@ -129,7 +129,7 @@ export default function CompanyEcoSearch() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [pendingSubmissions, setPendingSubmissions] = useState([
+  const [pendingSubmissions] = useState([
     {
       id: 'sub_1',
       name: '北斗聚心科技有限公司',

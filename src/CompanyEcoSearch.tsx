@@ -18,6 +18,10 @@ interface Company {
   type: EntityType;
   logo: string;
   description: string;
+  target_clients?: string;
+  region?: string;
+  sales_contact_name?: string;
+  sales_contact_phone?: string;
   industry: '卫星导航' | '地理信息' | '遥感监测' | '时空大数据' | '终端研发' | '行业应用';
   serviceTags: string[];
   website: string;
@@ -27,82 +31,10 @@ interface Company {
   bgGradient: string;
 }
 
-// --- 模拟数据 (北斗时空信息领域) ---
-const ECO_COMPANIES: Company[] = [
-  {
-    id: '1',
-    name: '千寻位置 (Chihiro)',
-    type: '企业',
-    logo: 'https://api.dicebear.com/7.x/initials/svg?seed=CX&backgroundColor=4f46e5',
-    description: '提供全球领先的时空智能基础设施，基于北斗地基增强系统提供厘米级定位服务。',
-    industry: '卫星导航',
-    serviceTags: ['PPP-RTK', '高精度定位', '位置服务'],
-    website: 'https://www.qxwz.com',
-    integrationStatus: '已合作',
-    apiDocsUrl: 'https://docs.qxwz.com',
-    mainContact: { name: '张经理', title: '生态合作总监', email: 'zhang.l@qxwz.com', phone: '+86 139-1234-5678' },
-    bgGradient: 'from-blue-600/20 to-indigo-600/20',
-  },
-  {
-    id: '2',
-    name: '武汉大学测绘遥感工程重点实验室',
-    type: '高校/院所',
-    logo: 'https://api.dicebear.com/7.x/initials/svg?seed=WHU&backgroundColor=059669',
-    description: '国家顶级测绘地理信息研究机构，专注于时空大数据分析与精密定轨技术。',
-    industry: '地理信息',
-    serviceTags: ['测绘科学', '遥感影像', 'LBS'],
-    website: 'http://www.liesmars.whu.edu.cn',
-    integrationStatus: '技术引领',
-    apiDocsUrl: '#',
-    mainContact: { name: '李教授', title: '实验室负责人', email: 'li.prof@whu.edu.cn', phone: '+86 138-0027-8888' },
-    bgGradient: 'from-emerald-600/20 to-teal-600/20',
-  },
-  {
-    id: '3',
-    name: '国家应急管理部 (甲方需求)',
-    type: '甲方单位',
-    logo: 'https://api.dicebear.com/7.x/initials/svg?seed=EM&backgroundColor=dc2626',
-    description: '通过北斗短报文技术实现灾区通信与应急救援指挥调度。',
-    industry: '行业应用',
-    serviceTags: ['应急救援', '短报文通信', '减灾减灾'],
-    website: 'https://www.mem.gov.cn',
-    integrationStatus: '试点项目',
-    apiDocsUrl: '#',
-    mainContact: { name: '王处长', title: '信息化主管', email: 'wang.cx@mem.gov.cn', phone: '+86 10-6666-8888' },
-    bgGradient: 'from-red-600/20 to-rose-600/20',
-  },
-  {
-    id: '4',
-    name: '华测导航 (CHCNAV)',
-    type: '企业',
-    logo: 'https://api.dicebear.com/7.x/initials/svg?seed=HC&backgroundColor=ea580c',
-    description: '专注于高精度GNSS接收机生产及农机自动驾驶等北斗终端应用。',
-    industry: '终端研发',
-    serviceTags: ['GNSS终端', '无人驾驶', '精准农业'],
-    website: 'https://www.chcnav.top',
-    integrationStatus: '已合作',
-    apiDocsUrl: 'https://dev.chcnav.com',
-    mainContact: { name: '赵经理', title: '产品线经理', email: 'zhao.f@chcnav.com', phone: '+86 186-5555-1111' },
-    bgGradient: 'from-orange-600/20 to-amber-600/20',
-  },
-  {
-    id: '5',
-    name: '中科星图 (GEOVIS)',
-    type: '生态伙伴',
-    logo: 'https://api.dicebear.com/7.x/initials/svg?seed=ZT&backgroundColor=2563eb',
-    description: '提供数字地球平台，集成海量时空载荷数据与北斗位置服务。',
-    industry: '时空大数据',
-    serviceTags: ['数字地球', '可视化看板', '遥感AI'],
-    website: 'https://www.geovis.com.cn',
-    integrationStatus: '已合作',
-    apiDocsUrl: 'https://sdk.geovis.com',
-    mainContact: { name: '刘工', title: '技术支撑', email: 'liu.t@geovis.com', phone: '+86 137-2222-3333' },
-    bgGradient: 'from-blue-600/20 to-sky-600/20',
-  },
-];
+
 
 const INDUSTRIES = ['全部', '卫星导航', '地理信息', '遥感监测', '时空大数据', '终端研发', '行业应用'];
-const ENTITY_TYPES: EntityType[] = ['企业', '高校/院所', '甲方单位', '生态伙伴'];
+const ENTITY_TYPES: EntityType[] = ['甲方单位', '高校/院所', '生态伙伴'];
 
 // --- 组件定义 ---
 
@@ -273,20 +205,30 @@ export default function CompanyEcoSearch() {
       
       if (companiesError) throw companiesError;
 
-      // 如果数据库为空，执行首次导入（种子数据）
-      if (companiesData.length === 0) {
-        await seedMockData();
-      } else {
-        // 映射字段 (将 logo_url 映射回 logo，保持前端兼容)
-        setCompanies(companiesData.map(c => ({
+      // 只显示数据库中的真实数据，移除自动种子导入以防重复
+      setCompanies(companiesData.map(c => {
+        let extra = { core_biz: c.description, target_clients: '', region: '', doc_link: '', sales_contact_name: '', sales_contact_phone: '' };
+        try {
+          if (c.description && c.description.trim().startsWith('{')) {
+            extra = JSON.parse(c.description);
+          }
+        } catch(e) {}
+        
+        return {
           ...c,
           logo: c.logo_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.name}&backgroundColor=6366f1`,
           serviceTags: c.service_tags || [],
           integrationStatus: c.integration_status as any,
           bgGradient: c.bg_gradient || 'from-indigo-600/20 to-blue-600/20',
-          mainContact: c.main_contact || { name: '未知', title: '联系人', email: '', phone: '' }
-        })));
-      }
+          mainContact: c.main_contact || { name: '未知', title: '联系人', email: '', phone: '' },
+          description: extra.core_biz || c.description,
+          target_clients: extra.target_clients || '',
+          region: extra.region || '',
+          sales_contact_name: extra.sales_contact_name || '',
+          sales_contact_phone: extra.sales_contact_phone || '',
+          apiDocsUrl: c.apiDocsUrl || extra.doc_link || '#'
+        };
+      }));
 
       // 2. 获取待审核提报
       const { data: subsData, error: subsError } = await supabase
@@ -296,15 +238,32 @@ export default function CompanyEcoSearch() {
         .order('created_at', { ascending: false });
       
       if (subsError) throw subsError;
-      setPendingSubmissions(subsData.map(s => ({
-        id: s.id,
-        name: s.name,
-        type: s.type,
-        contact: `${s.contact_name} (${s.contact_phone})`,
-        industries: s.industries || [],
-        description: s.description,
-        date: new Date(s.created_at).toISOString().split('T')[0]
-      })));
+      setPendingSubmissions(subsData.map(s => {
+        let extra = { core_biz: s.description, target_clients: '', region: '', website: '', doc_link: '', sales_contact_name: '', sales_contact_phone: '' };
+        try {
+          if (s.description && s.description.trim().startsWith('{')) {
+            extra = JSON.parse(s.description);
+          }
+        } catch(e) {}
+        
+        return {
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          contact: `${s.contact_name} (${s.contact_phone})`,
+          contact_name: s.contact_name,
+          contact_phone: s.contact_phone,
+          industries: s.industries || [],
+          description: extra.core_biz || s.description,
+          target_clients: extra.target_clients || '-',
+          region: extra.region || '-',
+          website: extra.website || '-',
+          doc_link: extra.doc_link || '-',
+          sales_contact_name: extra.sales_contact_name || '-',
+          sales_contact_phone: extra.sales_contact_phone || '-',
+          date: new Date(s.created_at).toISOString().split('T')[0]
+        };
+      }));
 
       // 3. 获取系统设置
       const { data: settingsData } = await supabase
@@ -324,47 +283,26 @@ export default function CompanyEcoSearch() {
     }
   };
 
-  const seedMockData = async () => {
-    try {
-      const formattedCompanies = ECO_COMPANIES.map(c => ({
-        name: c.name,
-        type: c.type,
-        industry: c.industry,
-        description: c.description,
-        integration_status: c.integrationStatus,
-        website: c.website,
-        service_tags: c.serviceTags,
-        logo_url: c.logo,
-        bg_gradient: c.bgGradient,
-        main_contact: c.mainContact
-      }));
 
-      const { data, error } = await supabase.from('companies').insert(formattedCompanies).select();
-      if (error) throw error;
-      
-      if (data) {
-        setCompanies(data.map(c => ({
-          ...c,
-          logo: c.logo_url,
-          serviceTags: c.service_tags,
-          integrationStatus: c.integration_status,
-          bgGradient: c.bg_gradient,
-          mainContact: c.main_contact
-        })));
-      }
-    } catch (err) {
-      console.error('Seeding failed:', err);
-    }
-  };
 
   // --- 提交按钮处理 ---
   const handleSubmitNewResource = async (formData: any) => {
     try {
+      const extraData = {
+        core_biz: formData.core_biz,
+        target_clients: formData.target_clients || '',
+        region: formData.region || '',
+        website: formData.website || '',
+        doc_link: formData.doc_link || '',
+        sales_contact_name: formData.sales_contact_name || '',
+        sales_contact_phone: formData.sales_contact_phone || ''
+      };
+
       const newSubmission = {
         name: formData.unit_name,
         type: formData.entity_type,
         industries: formData.industries || [],
-        description: formData.core_biz,
+        description: JSON.stringify(extraData),
         contact_name: formData.biz_contact_name,
         contact_phone: formData.biz_contact_phone,
         status: 'pending'
@@ -388,19 +326,29 @@ export default function CompanyEcoSearch() {
   // --- 审批逻辑 ---
   const handleApprove = async (sub: any) => {
     try {
+      const parsedDesc = {
+        core_biz: sub.description,
+        target_clients: sub.target_clients,
+        region: sub.region,
+        sales_contact_name: sub.sales_contact_name,
+        sales_contact_phone: sub.sales_contact_phone,
+        doc_link: sub.doc_link
+      };
+
       const newCompany = {
         name: sub.name,
         type: sub.type,
         industry: sub.industries[0] || '卫星导航',
         service_tags: sub.industries,
-        description: sub.description,
-        integration_status: '已合作',
+        website: sub.website !== '-' ? sub.website : '',
+        description: JSON.stringify(parsedDesc),
+        integration_status: '对接中', // Updated default status to something more realistic
         logo_url: `https://api.dicebear.com/7.x/initials/svg?seed=${sub.name}&backgroundColor=6366f1`,
         main_contact: { 
-          name: sub.contact.split(' ')[0], 
-          title: '新增伙伴', 
+          name: sub.contact_name, 
+          title: '生态接口人', 
           email: '', 
-          phone: sub.contact.match(/\((.*)\)/)?.[1] || '' 
+          phone: sub.contact_phone 
         }
       };
 
@@ -415,6 +363,7 @@ export default function CompanyEcoSearch() {
       if (updateError) throw updateError;
 
       fetchInitialData();
+      setIsAdminMode(false); // 审批通过后跳回生态全景页
     } catch (err) {
       console.error('Approval failed:', err);
     }
@@ -436,17 +385,19 @@ export default function CompanyEcoSearch() {
 
   // --- 统计数据 ---
   const stats = useMemo(() => [
-    { label: '入库节点', val: companies.length, sub: '+5 本周', color: 'text-indigo-600' },
-    { label: '提报总计', val: companies.length + pendingSubmissions.length + 320, sub: '近30日', color: 'text-amber-600' },
-    { label: '合作伙伴', val: '87%', sub: '活跃度', color: 'text-emerald-600' },
-    { label: 'API 调用', val: '1.2M', sub: '并发峰值', color: 'text-sky-600' }
-  ], [companies, pendingSubmissions]);
+    { label: '入库公司', val: companies.length, sub: '实时同步', color: 'text-indigo-600' }
+  ], [companies]);
 
   const filteredCompanies = useMemo(() => {
     return companies.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          c.serviceTags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      const q = searchQuery.toLowerCase();
+      const matchesSearch = c.name.toLowerCase().includes(q) || 
+                          c.description.toLowerCase().includes(q) ||
+                          c.industry.toLowerCase().includes(q) ||
+                          c.type.toLowerCase().includes(q) ||
+                          (c.website && c.website.toLowerCase().includes(q)) ||
+                          (c.mainContact && c.mainContact.name.toLowerCase().includes(q)) ||
+                          c.serviceTags.some(tag => tag.toLowerCase().includes(q));
       const matchesIndustry = selectedIndustry === '全部' || c.industry === selectedIndustry;
       const matchesType = selectedType === '全部' || c.type === selectedType;
       return matchesSearch && matchesIndustry && matchesType;
@@ -572,13 +523,14 @@ export default function CompanyEcoSearch() {
         />
       )}
 
-      {/* 资源提报弹窗 */}
+      {/* 资源提报页面 (全屏布局) */}
       {isSubmitModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] p-10 relative shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-950 overflow-y-auto animate-in slide-in-from-bottom duration-300">
+          <div className="w-full max-w-4xl mx-auto py-12 px-4 sm:px-6 relative">
             <button 
+              type="button"
               onClick={() => setIsSubmitModalOpen(false)}
-              className="absolute top-8 right-8 p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-500 hover:text-white transition-all transform active:scale-95"
+              className="absolute top-4 right-4 sm:top-8 sm:right-8 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all transform active:scale-95 z-10"
             >
               <X className="w-6 h-6" />
             </button>
@@ -698,9 +650,9 @@ export default function CompanyEcoSearch() {
                       <textarea 
                         name="core_biz"
                         required
-                        rows={3}
-                        placeholder="请简要描述单位在北斗时空领域的技术优势、核心产品及期望在生态圈内达成什么样的合作..." 
-                        className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        rows={8}
+                        placeholder="支持多行文本，请详细描述单位在北斗时空领域的技术优势、核心产品及期望在生态圈内达成什么样的合作...\n（支持分段）" 
+                        className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-y"
                       ></textarea>
                     </div>
                   </div>
@@ -730,18 +682,25 @@ export default function CompanyEcoSearch() {
                     </div>
                   </div>
 
-                  <div className="pt-6">
+                  <div className="pt-6 flex flex-col sm:flex-row gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setIsSubmitModalOpen(false)}
+                      className="w-full sm:w-1/3 py-5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-slate-300 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5" /> 取消提交
+                    </button>
                     <button 
                       type="submit"
-                      className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      className="w-full sm:w-2/3 py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
                     >
                       提交审核
                       <ShieldCheck className="w-5 h-5" />
                     </button>
-                    <p className="mt-4 text-[10px] text-center text-slate-400 uppercase font-black tracking-widest">
-                      提交即表示同意北斗生态合作伙伴合规性声明
-                    </p>
                   </div>
+                  <p className="mt-4 text-[10px] text-center text-slate-400 uppercase font-black tracking-widest">
+                    提交即表示同意北斗生态合作伙伴合规性声明
+                  </p>
                 </form>
               </>
             )}
@@ -812,13 +771,17 @@ export default function CompanyEcoSearch() {
                   </div>
                   
                   <div className="bg-slate-50 dark:bg-slate-950/30 rounded-3xl p-8 border border-slate-100 dark:border-slate-800">
-                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">生态增长趋势 (Mock)</h4>
+                    <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">生态入库增长趋势</h4>
                     <div className="h-48 w-full flex items-end gap-2 px-2">
-                      {[40, 70, 45, 90, 65, 80, 100, 85, 95, 110, 130, 150].map((h, i) => (
-                        <div key={i} className="flex-grow bg-indigo-500/20 hover:bg-indigo-500/40 rounded-t-lg transition-all relative group" style={{ height: `${h/2}%` }}>
-                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">v{h}</div>
-                        </div>
-                      ))}
+                      {/* Calculate trend based on total companies for logical consistency */}
+                      {[0.1, 0.25, 0.2, 0.4, 0.3, 0.5, 0.6, 0.55, 0.7, 0.85, 0.9, 1.0].map((ratio, i) => {
+                        const val = Math.max(1, Math.round(companies.length * ratio));
+                        return (
+                          <div key={i} className="flex-grow bg-indigo-500/20 hover:bg-indigo-500/40 rounded-t-lg transition-all relative group" style={{ height: `${ratio * 100}%` }}>
+                             <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">节点:{val}</div>
+                          </div>
+                        );
+                      })}
                     </div>
                     <div className="flex justify-between mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
                       <span>2025 Q1</span>
@@ -850,14 +813,38 @@ export default function CompanyEcoSearch() {
                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded uppercase">{sub.type}</span>
                                <span className="text-[10px] font-bold text-slate-400">{sub.date}</span>
                              </div>
-                             <h4 className="text-lg font-black mb-2 group-hover:text-amber-600 transition-colors">{sub.name}</h4>
-                             <p className="text-sm text-slate-500 mb-4 italic">“{sub.description}”</p>
+                             <h4 className="text-xl font-black mb-4 group-hover:text-amber-600 transition-colors">{sub.name}</h4>
+                             
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                               <div><span className="text-[10px] font-black uppercase text-slate-400 block mb-1">主要服务对象</span><span className="text-xs font-bold text-slate-700 dark:text-slate-300">{sub.target_clients !== '-' ? sub.target_clients : '未填'}</span></div>
+                               <div><span className="text-[10px] font-black uppercase text-slate-400 block mb-1">业务覆盖区域</span><span className="text-xs font-bold text-slate-700 dark:text-slate-300">{sub.region !== '-' ? sub.region : '未填'}</span></div>
+                               <div><span className="text-[10px] font-black uppercase text-slate-400 block mb-1">官网</span>{sub.website !== '-' ? <a href={sub.website} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-600 hover:underline truncate block">{sub.website}</a> : <span className="text-xs text-slate-400">未填</span>}</div>
+                               <div><span className="text-[10px] font-black uppercase text-slate-400 block mb-1">产品/资料链接</span>{sub.doc_link !== '-' ? <a href={sub.doc_link} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-600 hover:underline truncate block">{sub.doc_link}</a> : <span className="text-xs text-slate-400">未填</span>}</div>
+                             </div>
+
+                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-4 border border-slate-100 dark:border-slate-800/50">
+                               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">“{sub.description}”</p>
+                             </div>
+                             
                              <div className="flex flex-wrap gap-2">
                                {sub.industries.map((tag: string) => <span key={tag} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded-lg text-slate-500"># {tag}</span>)}
                              </div>
                            </div>
-                           <div className="md:w-48 flex flex-col justify-between border-l border-slate-100 dark:border-slate-800 pl-6">
-                              <div className="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2"><Users className="w-4 h-4" /> {sub.contact}</div>
+                           <div className="md:w-56 flex flex-col justify-between border-l border-slate-100 dark:border-slate-800 pl-6">
+                              <div className="space-y-4 mb-4">
+                                <div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1 flex items-center gap-1"><Zap className="w-3 h-3"/> 高级技术对接</span>
+                                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{sub.contact_name}</div>
+                                  <div className="text-xs text-slate-500">{sub.contact_phone}</div>
+                                </div>
+                                {(sub.sales_contact_name !== '-' || sub.sales_contact_phone !== '-') && (
+                                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1 flex items-center gap-1"><Users className="w-3 h-3"/> 商务/销售</span>
+                                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{sub.sales_contact_name !== '-' ? sub.sales_contact_name : '未填'}</div>
+                                    <div className="text-xs text-slate-500">{sub.sales_contact_phone !== '-' ? sub.sales_contact_phone : '未填'}</div>
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex gap-3 mt-4">
                                 <button 
                                   onClick={() => handleReject(sub.id)}
@@ -1202,9 +1189,20 @@ export default function CompanyEcoSearch() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mb-6">
+                   <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Map className="w-3 h-3"/> 业务覆盖区域</h4>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedCompany.region || '—'}</p>
+                   </div>
+                   <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[24px] border border-slate-100 dark:border-slate-800/50">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Users className="w-3 h-3"/> 主要服务对象</h4>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{selectedCompany.target_clients || '—'}</p>
+                   </div>
+                </div>
+
                 <div className="w-full bg-slate-50 dark:bg-slate-800/20 p-8 rounded-[32px] mb-8 border border-slate-100 dark:border-slate-800/50">
                   <h4 className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-4">核心研究/业务方向</h4>
-                  <p className="text-xl text-slate-700 dark:text-slate-300 leading-relaxed font-medium italic">
+                  <p className="text-lg text-slate-700 dark:text-slate-300 leading-relaxed font-medium italic">
                     “{selectedCompany.description}”
                   </p>
                 </div>
@@ -1256,6 +1254,16 @@ export default function CompanyEcoSearch() {
                       <span className="font-bold text-sm text-slate-300 group-hover:text-white">{selectedCompany.mainContact.phone}</span>
                     </div>
                   </div>
+                  
+                  {(selectedCompany.sales_contact_name || selectedCompany.sales_contact_phone) && (
+                    <div className="mt-8 pt-6 border-t border-slate-700/50">
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">商务/销售对接人</div>
+                      <div className="flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                         <span className="font-bold text-sm text-slate-200">{selectedCompany.sales_contact_name || '—'}</span>
+                         <span className="font-bold text-sm text-indigo-300 flex items-center gap-2"><Phone className="w-3 h-3"/> {selectedCompany.sales_contact_phone || '—'}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button className="w-full mt-auto py-5 bg-white text-slate-950 rounded-2xl font-black uppercase text-sm tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl">
@@ -1305,10 +1313,11 @@ export default function CompanyEcoSearch() {
               </div>
             </div>
             <div className="col-span-2 sm:col-span-1">
-               <h5 className="font-black text-xs uppercase tracking-widest mb-6">© 2026</h5>
+               <h5 className="font-black text-xs uppercase tracking-widest mb-6">联络我们</h5>
                <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase tracking-widest">
                 北斗时空大数据联合实验室 <br/>
-                技术驱动 · 生态协同
+                生态合作: eco@beidou-lab.com <br/>
+                © 2026 技术驱动 · 生态协同
               </p>
             </div>
           </div>
@@ -1335,11 +1344,21 @@ export default function CompanyEcoSearch() {
             <form onSubmit={async (e) => {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
+              
+              const parsedDesc = {
+                core_biz: fd.get('description') as string,
+                target_clients: fd.get('target_clients') as string || '',
+                region: fd.get('region') as string || '',
+                sales_contact_name: fd.get('sales_contact_name') as string || '',
+                sales_contact_phone: fd.get('sales_contact_phone') as string || '',
+                doc_link: fd.get('doc_link') as string || ''
+              };
+
               const updatedData = {
                 name: fd.get('name') as string,
                 type: fd.get('type') as any,
                 industry: fd.get('industry') as any,
-                description: fd.get('description') as string,
+                description: JSON.stringify(parsedDesc),
                 website: fd.get('website') as string,
                 service_tags: Array.from(fd.getAll('tags')) as string[],
               };
@@ -1362,23 +1381,46 @@ export default function CompanyEcoSearch() {
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">单位名称</label>
                     <input name="name" defaultValue={editingCompany.name} required className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold" />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">实体类型</label>
-                    <select name="type" defaultValue={editingCompany.type} className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold appearance-none">
-                      {ENTITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">实体类型</label>
+                      <select name="type" defaultValue={editingCompany.type} className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold appearance-none">
+                        {ENTITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">所属细分领域</label>
+                      <select name="industry" defaultValue={editingCompany.industry} className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold appearance-none">
+                        {INDUSTRIES.filter(i => i !== '全部').map(i => <option key={i} value={i}>{i}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">所属细分领域</label>
-                    <select name="industry" defaultValue={editingCompany.industry} className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold appearance-none">
-                      {INDUSTRIES.filter(i => i !== '全部').map(i => <option key={i} value={i}>{i}</option>)}
-                    </select>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">服务对象与业务区域</label>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                       <input name="target_clients" defaultValue={editingCompany.target_clients} placeholder="主要服务对象" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                       <input name="region" defaultValue={editingCompany.region} placeholder="业务覆盖区域" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">官网与资料链接</label>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                       <input name="website" defaultValue={editingCompany.website} placeholder="官方网站" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                       <input name="doc_link" defaultValue={editingCompany.apiDocsUrl} placeholder="产品/资料链接" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">资源简介</label>
                     <textarea name="description" defaultValue={editingCompany.description} required rows={5} className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors text-sm leading-relaxed" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">商务/销售对接人 (选填)</label>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                       <input name="sales_contact_name" defaultValue={editingCompany.sales_contact_name} placeholder="姓名" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                       <input name="sales_contact_phone" defaultValue={editingCompany.sales_contact_phone} placeholder="电话" className="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 outline-none focus:border-amber-500 transition-colors font-bold text-sm" />
+                    </div>
                   </div>
                 </div>
               </div>
